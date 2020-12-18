@@ -79,5 +79,5 @@ class BernThompson(BetaAlgo):
   
     def get_action(self):
         theta = np.random.beta(self.alpha, self.beta)
-        indx = np.unravel_index(np.argmax(theta, axis=None), theta.shape)
+        indx = np.unravel_index(np.argmax(theta, axis=None), theta.shape) # theta 最大值的index
         return indx
