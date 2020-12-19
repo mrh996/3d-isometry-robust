@@ -43,15 +43,17 @@ class environment():
 
     def get_reward_matrix(self, arm, obj, label, model):
         a, b = self.arm_to_interval(arm)
-        
-        matrix = isometry_init.rotation_xyz(a, b) #or use isometry_init.reflection(a, b)
+        angles = np.zeros(3)
+        for i in range(3):
+          angles[i] =  np.random.uniform(a[i], b[i], 1) 
+        matrix = isometry_init.rotation_xyz(angles) #or use isometry_init.reflection(a, b)
         model.iso.weight.data = torch.Tensor(matrix).to(device)
         _, correct, _, _ = logits_info(obj, label, model)
         if self.train:
             reward = correct # when training rewards from correct prediction
         else:
             reward = 1 - correct # when attack rewards from wrong predictionreward = 1 - correct # correct = 0 means prediction wrong, i.e. this interval is good for attack
-        return reward, matrix
+        return reward, matrix, angles
 
 
 class BetaAlgo():
@@ -63,9 +65,9 @@ class BetaAlgo():
         self.beta = np.ones(pow(self.d,3)).reshape(self.d, self.d, self.d)
   
     def get_reward_matrix(self, arm, obj, label, model):
-        reward, matrix = self.environment.get_reward_matrix(arm, obj, label, model)
+        reward, matrix ,angles= self.environment.get_reward_matrix(arm, obj, label, model)
         self._update_params(arm, reward)
-        return reward, matrix
+        return reward, matrix, angles
 
 
     def _update_params(self, arm, reward):
