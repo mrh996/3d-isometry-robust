@@ -392,8 +392,12 @@ if __name__ == '__main__':
         
             if (correct == 0) and (true_prob_before>0.98 and rates[0].item()>0.98 or penalty < 0.05) and (save_times <= 10):
                 save_times += 1
-            
-            log_row(logname, [i, label.item(), true_prob_before, 100.*rates[indx_label].item(), 
+                pert = model_v.iso.weight.data
+                x_adv = torch.matmul(pert, obj)
+                save_file = "/content/3d-isometry-robust/data/output/%s.npz" % (save_times)
+                np.savez_compressed(save_file, x = x_adv.cpu().detach().numpy())
+                save_visual_points(obj, pert, args, i, penalty)
+                log_row(logname, [i, label.item(), true_prob_before, 100.*rates[indx_label].item(), 
                 indices[0].item(), 100.*rates[0].item(), penalty, steps, 
                 100.*(attack_times-sum(corrects))/attack_times, 100.*init_suc/attack_times])
             if i % 100 == 0:
