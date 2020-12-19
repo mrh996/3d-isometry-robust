@@ -103,7 +103,7 @@ def thompson_sample_attack(thompson, obj, label, model, num_init = 1):
     matrices = np.zeros([num_init,3,3])
     for i in range (num_init):
         arm = thompson.get_action() # arm corresponds to the 3 intervals of sampling
-        reward, matrix = thompson.get_reward_matrix(arm, obj, label, model)
+        reward, matrix, angles = thompson.get_reward_matrix(arm, obj, label, model)
         model.iso.weight.data = torch.Tensor(matrix).to(device)
         _, correct, rates, indices = logits_info(obj, label, model)
         indx_label = (indices == label.item()).nonzero().item()
@@ -112,7 +112,7 @@ def thompson_sample_attack(thompson, obj, label, model, num_init = 1):
 
         if reward == 1:
             break
-    return torch.Tensor(matrices[np.argmin(accuracies),:,:]).to(device), thompson
+    return torch.Tensor(matrices[np.argmin(accuracies),:,:]).to(device), thompson,angles
 
 
 
@@ -338,6 +338,7 @@ if __name__ == '__main__':
     it = iter(attack_loader)
     corrects = []
     penalties = []
+    angle = []
     iso_penalties = []
 
     log_row(logname, ['Test number', 'True label', 'Prob before', 'Prob after',
@@ -370,7 +371,7 @@ if __name__ == '__main__':
             model_v = ISOnet(model = model).to(device)
             model_v.eval()
             
-            model_v.iso.weight.data, thompson = thompson_sample_attack(thompson, obj, label, model_v, args.num_init)
+            model_v.iso.weight.data, thompson , angles = thompson_sample_attack(thompson, obj, label, model_v, args.num_init)
             _, correct, rates, indices = logits_info(obj, label, model_v)
             indx_label = (indices == label.item()).nonzero().item()
             if correct == 0:
@@ -387,15 +388,15 @@ if __name__ == '__main__':
 
             corrects.append(correct)
             penalties.append(penalty)
-
+            angle.append(angles)
                 
         
             if (correct == 0) and (true_prob_before>0.98 and rates[0].item()>0.98 or penalty < 0.05) and (save_times <= 10):
                 save_times += 1
                 pert = model_v.iso.weight.data
-                x_adv = torch.matmul(pert, obj)
-                save_file = "/content/3d-isometry-robust/data/output/%s.npz" % (save_times)
-                np.savez_compressed(save_file, x = x_adv.cpu().detach().numpy())
+                #x_adv = torch.matmul(pert, obj)
+                #save_file = "/content/3d-isometry-robust/data/output/%s.npz" % (save_times)
+                #np.savez_compressed(save_file, x = x_adv.cpu().detach().numpy())
                 save_visual_points(obj, pert, args, i, penalty)
                 log_row(logname, [i, label.item(), true_prob_before, 100.*rates[indx_label].item(), 
                 indices[0].item(), 100.*rates[0].item(), penalty, steps, 
@@ -403,6 +404,7 @@ if __name__ == '__main__':
             if i % 100 == 0:
                 print('Attack success rate %.3f%%(%d/%d)'%(100.*(attack_times-sum(corrects))/attack_times, 
                             attack_times-sum(corrects), attack_times))
+                print('angle',angle)
 
     log_penalty(logname, i, penalties, iso_penalties)
     log_thompson(logname, thompson)
