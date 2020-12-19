@@ -1,10 +1,10 @@
 import numpy as np
 
-def rotation_xyz(a=np.zeros(3),b=2*np.pi*np.ones(3)):
+def rotation_xyz(angles):
     #angles =  np.random.normal(np.pi, 3*np.pi, 3) 
-    angles = np.zeros(3)
-    for i in range(3):
-        angles[i] =  np.random.uniform(a[i], b[i], 1) 
+    #angles = np.zeros(3)
+    #for i in range(3):
+        #angles[i] =  np.random.uniform(a[i], b[i], 1) 
     
     cos_x, sin_x = np.cos(angles[0]), np.sin(angles[0])
     cos_y, sin_y = np.cos(angles[1]), np.sin(angles[1])
