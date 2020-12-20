@@ -100,7 +100,7 @@ class ISOnet(nn.Module):
 
 def thompson_sample_attack(thompson, obj, label, model, num_init = 1):
     accuracies = []
-    matrices = np.zeros([num_init,3,3])
+    matrices = []
     for i in range (num_init):
         arm = thompson.get_action() # arm corresponds to the 3 intervals of sampling
         reward, matrix, angles = thompson.get_reward_matrix(arm, obj, label, model)
@@ -108,10 +108,26 @@ def thompson_sample_attack(thompson, obj, label, model, num_init = 1):
         _, correct, rates, indices = logits_info(obj, label, model)
         indx_label = (indices == label.item()).nonzero().item()
         accuracies.append(rates[indx_label].item())
-        matrices[i,:,:] = matrix
+        matrices.append(matrix)
 
         if reward == 1:
             break
+    '''
+    i= 1
+    while correct ==1 and i <30 :
+      i = i+1
+      for l in range(3):
+            angles[l] =  angles[l]+ i*angles[l]*((-2)*np.random.random()+1)
+      matrix = isometry_init.rotation_xyz(angles) #or use isometry_init.reflection(a, b)
+      model.iso.weight.data = torch.Tensor(matrix).to(device)
+      _, correct, rates, indices = logits_info(obj, label, model)
+      indx_label = (indices == label.item()).nonzero().item()
+      accuracies.append(rates[indx_label].item())
+      matrices.append(matrix)
+      if correct == 1:
+          break
+    '''
+    matrices = np.array(matrices)
     return torch.Tensor(matrices[np.argmin(accuracies),:,:]).to(device), thompson,angles
 
 
@@ -244,11 +260,11 @@ def log_penalty(logname, i, penalties, iso_penalties):
     if iso_penalties != []:
         log_row(logname, [max(penalties), 1.*sum(penalties)/(i+1), np.var(penalties),
              1.*sum(iso_penalties)/(len(iso_penalties)), np.var(iso_penalties)])
-        print(max(penalties), 1.*sum(penalties)/(i+1), np.var(penalties),
+        print( 'max_panelty'，max(penalties), 1.*sum(penalties)/(i+1), np.var(penalties),
              1.*sum(iso_penalties)/(len(iso_penalties)), np.var(iso_penalties))
     else:
         log_row(logname, [max(penalties), 1.*sum(penalties)/(i+1), np.var(penalties),'/', '/' ])
-        print(max(penalties), 1.*sum(penalties)/(i+1), np.var(penalties),'/', '/')
+        print('max_penalty',max(penalties), 1.*sum(penalties)/(i+1), np.var(penalties),'/', '/')
 
 
 if __name__ == '__main__':
@@ -256,7 +272,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, default='pointnet', help='choose victim model type')
     parser.add_argument('--data', type=str, default='modelnet40', help='choose vanila data set')
-    parser.add_argument('--seed', type=int, default=0, help='manual random seed')
+    parser.add_argument('--seed', type=int, default=4682, help='manual random seed')
     parser.add_argument('--attack_batch_size', type=int, default=1, help='attack batch size')
     parser.add_argument('--num_points', type=int, default=2048, help='number of points sampled for one object')
     parser.add_argument('--model_path', default='example', help='path to store model state_dict') 
@@ -371,12 +387,13 @@ if __name__ == '__main__':
             model_v = ISOnet(model = model).to(device)
             model_v.eval()
             
-            model_v.iso.weight.data, thompson , angles = thompson_sample_attack(thompson, obj, label, model_v, args.num_init)
+            model_v.iso.weight.data, thompson , angles = thompson_sample_attack(thompson, obj, label, model_v, 1000)
             _, correct, rates, indices = logits_info(obj, label, model_v)
             indx_label = (indices == label.item()).nonzero().item()
             if correct == 0:
                 #TSI attack success
                 init_suc += 1
+            
             elif args.attack_type == 'combine':            
                 correct, rates, indices, model_v, penalty, steps = gradient_attack(obj, label, model_v, args)
                 indx_label = (indices == label.item()).nonzero().item()
